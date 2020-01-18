@@ -1,0 +1,140 @@
+library(shiny)
+library(shinydashboard)
+library(rpart)
+library(tidyverse)
+library(caret)
+library(randomForest)
+library(e1071)
+library(ellipsis)
+library(modelr)
+
+
+
+################
+# ui
+################
+  ui<-fluidPage(
+    titlePanel(
+      h1("Predicting Vitamin D using Machine Learning", align = "center")),
+    br(),
+    
+    dashboardBody(
+      tags$img(
+        src = "https://render.fineartamerica.com/images/rendered/default/poster/10/8/break/images-medium/1-vitamin-d-molecule-laguna-design.jpg",
+        style = 'position: absolute; right:600px; height:1200px; width:1000px'
+      )),    
+      mainPanel(
+      fluidRow(align = "center", h3(strong("Can we predict Vitamin D (25 OH) results based upon other basic Chemistry and Hematology results?"))), width = 12,
+      br(),
+      br(),
+      fluidRow(h3("Regression Machine Learning")),
+      p("Libraries used for Machine Learning were tidyverse, caret, e1071 (svm), randomForest, rpart, gbm, modelr and ellipsis"),
+      h4("Preprocessing Data"),
+      tags$div(tags$ul(
+        tags$li(tags$span("Gender was converted from characters to numeric (M=0 and F=1).")),
+        tags$li(tags$span("We removed all non-numeric data from the result column (<, > and text values.)")),
+        tags$li(tags$span("All duplicate results were removed to ensure unique data.")),
+        tags$li(tags$span("We converted all columns to numeric from character class.")),
+        tags$li(tags$span("All 'NA' values were removed.")),
+        tags$li(tags$span("We converted our 'long' data to 'wide' so that each row was a unique instance of results.")),
+        tags$li(tags$span("We removed all patient identifiers for HIPPA compliance.")),
+        tags$li(tags$span("Our data was scaled in preparation for the svm module."))
+        )
+      ),
+      
+      br(),
+      h4("Regression Plots and Results"),
+      tags$div("Plots and Calculation Results"),
+      tags$div(tags$ul(
+        tags$li(tags$span("The tree was created using Rpart (Recursive Partitioning And Regression Trees), this yielded 2 nodes."))
+      )),
+      br(),
+      br(),
+      fluidRow(
+      column(2, plotOutput("tree", width = "100%")),
+      column(1, div(style="width:370px;padding-left:20px;",verbatimTextOutput("fit1", placeholder = TRUE)))
+      ),
+      br(),
+      tags$div(tags$ul(
+      tags$li(tags$span("Mean Absolute Error (mae) was another calculation we utilized. ",tags$br(), "mae looks at the average absolute difference between observed and predicted values. "))
+      )),
+      
+      div(style="width:350px;padding-left:20px;",verbatimTextOutput("mae1", placeholder = TRUE)),
+      
+      br(),
+      tags$div(tags$ul(
+      tags$li(tags$span("We then split the data utilizing the 'CreateDataPartition' function from caret, it uses simple random sampling to split the data.", tags$br(),"inTrain <- createDataPartition(y = data4$VitD, p = 0.70, list = FALSE)", 
+      tags$br(),"training <- data4[inTrain,]",tags$br(),"testing <- data4[-inTrain,]))"))
+      )),
+      
+      br(),
+      tags$div(tags$ul(
+        tags$li(tags$span("We ran a basic linear regression model on our data first, yielding an R squared value of 0.19")))),
+      
+      div(style="width:600px;padding-left:20px;",verbatimTextOutput("lm1", placeholder = TRUE)),
+      
+      tags$div(tags$ul(
+        tags$li(tags$span("We plotted the residuals against the training data, this is not a particularly good plot result.")))),
+      
+      plotOutput("resid_plot", width = "100%"),
+      
+      br(),
+      tags$div(tags$ul(
+      tags$li(tags$span("We used randomForest to evaluate our training dataset.",tags$br(),"train.rf<-randomForest(VitD ~., data = training, mtry=20, ntree=200, importance=TRUE, na.action = na.omit)"))
+      )),
+      
+      plotOutput("trainrf", width = "100%"),
+      
+      
+      div(style="width:200px;padding-left:20px;",verbatimTextOutput("rfRMSE", placeholder = TRUE)),
+      
+      
+      br(),
+      tags$div(tags$ul(
+        tags$li(tags$span("We decided to try the svm model as our randomForest model results were not good enough",tags$br(),
+        "We split and scaled the data again for svm preprocessing, linear and radial regression were evaluated.")))),
+      
+      div(style="width:200px;padding-left:20px;",verbatimTextOutput("svm_rmse", placeholder = TRUE)),
+      
+      plotOutput("svm_purple", width= "100%"),
+      
+      br(),
+      fluidRow(h4("Regression Conclusion")),
+        tags$div("We utilized RMSE (Root Mean Squared Error) and R squared to evaluate whether the regression modules used were able to predict numeric Vitamin D results accurately.", tags$br(), "The Total Error Allowed that is acceptable for Vitamin D is 5 ng/mL or 10%, we used this to 
+          judge whether our models were fit. The models used for the regression machine learning were randomForest and svm (e1071).", tags$br(),  "Both of these models yielded RMSE of ~15 and R squared of 0.19, 
+          which exceeds the allowable error associated with Vitamin D.", tags$br(), "Based upon our RMSE and R squared results and the numerous data points we used in this Machine Learning model (>10,000 rows), we've concluded that using randomForest and svm Linear Regression models will not predict
+          Vitamin D results based upon other Laboratory tests. "),
+      
+      br(),
+      br(),
+    h3("Classification Machine Learning"),
+    h4("Preprocessing Data"),
+      tags$div(tags$ul(
+        tags$li(tags$span("We utilized the same preprocessing steps outlined above.")),
+        tags$li(tags$span("In order to perform Classification Machine Learning we needed to add an additional column which we named 'Deficient'.",tags$br(), 
+        "We then classified the Vitamin D results based upon established reference ranges for Vitamin D,  Deficient <30, Normal >=30.")),
+      
+        
+        
+        plotOutput("feature", width= "100%"),
+        plotOutput("feature1", width= "100%")
+        
+        #div(style="width:200px;padding-left:20px;",verbatimTextOutput("rf_class", placeholder = TRUE)),
+        
+        #plotOutput("rf_class1", width = "100%"),
+        
+        #div(style="width:200px;padding-left:20px;",verbatimTextOutput("results_class", placeholder = TRUE)),
+        
+        #plotOutput("results", width = "100%"),
+        
+        #div(style="width:200px;padding-left:20px;",verbatimTextOutput("results1", placeholder = TRUE))
+        
+        
+    )
+    
+    
+    
+    
+  ),
+  bookmarkButton()
+))
